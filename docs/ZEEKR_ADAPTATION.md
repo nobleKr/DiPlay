@@ -65,6 +65,12 @@ Platform detect (open signals): presence of `com.zeekr.*` packages / Zeekr
 3. Wire `CarPlayController` to `HudBackends.select(context)` (field `nav`);
    all 8 `BydNavigationOutputs.*` call sites now go through the backend.
    BYD delegates 1:1, so BYD behaviour is unchanged. **done — needs `./gradlew` verify.**
-4. HUD route state + maneuver icon map; bring up HAB output on emulator stub.
-5. Vehicle data (VHAL), media-center source, wheel keys.
-6. On-car bring-up with the dumpsys facts above.
+4. Zeekr display geometry (ZeekrDisplays 2560x1600/2560x536/1024x576, ±5%),
+   HAB region 780x244 (ZeekrHudRegion), and VHAL read (ZeekrCarSignals/
+   ZeekrVehicleStatus: battery/range/gear/speed via android.car reflection,
+   property ids from the engine reference). Wired into ZeekrNavigationBackend
+   (battery + parked) and ZeekrDisplayRouter. Unit test: ZeekrDisplaysTest.
+   **done.**
+5. HUD route state + maneuver icon map; wheel-speed sampler.
+6. Media-center source + artwork, wheel keys; libHabCamera JNI symbols.
+7. On-car bring-up + MFi key source (user-supplied).

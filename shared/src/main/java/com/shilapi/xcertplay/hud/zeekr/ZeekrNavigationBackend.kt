@@ -40,12 +40,15 @@ object ZeekrNavigationBackend : NavigationHudBackend {
     override fun setClusterStreamControl(control: (Boolean) -> Unit) { /* TODO(increment 3) */ }
     override fun clearClusterStreamControl(control: (Boolean) -> Unit) { /* TODO(increment 3) */ }
 
-    // TODO(increment 4): read VHAL (android.car CarPropertyManager / Zeekr DeviceAPI).
-    override fun batteryStatus(context: Context): VehicleStatusProvider = VehicleStatusProvider { null }
+    override fun batteryStatus(context: Context): VehicleStatusProvider =
+        ZeekrVehicleStatus.batteryProvider(context)
+
+    // TODO(increment 5): wheel-speed sampler for tunnel dead reckoning.
     override fun wheelSpeed(context: Context): VehicleSpeedSource = object : VehicleSpeedSource {
         override fun start() {}
         override fun stop() {}
         override fun drain(): VehicleSpeedReading? = null
     }
-    override fun parked(context: Context): Boolean? = null
+
+    override fun parked(context: Context): Boolean? = ZeekrVehicleStatus.parked(context)
 }

@@ -17,11 +17,6 @@ import android.view.Display
 object ZeekrDisplayRouter {
     private const val TAG = "Zeekr-Display"
 
-    // TODO(device): confirm from dumpsys. These are the expected cluster/HUD
-    // surface sizes on the 001; leave null to fall back to name/size heuristics.
-    private val CLUSTER_SIZE: Point? = null // e.g. Point(1920, 720)
-    private val HUD_SIZE: Point = Point(780, 244) // HAB frame size used by the HUD channel
-
     /** Candidate presentation displays, main display (id 0) excluded. */
     fun presentationDisplays(context: Context): List<Display> {
         val dm = context.getSystemService(DisplayManager::class.java) ?: return emptyList()
@@ -30,24 +25,21 @@ object ZeekrDisplayRouter {
         return (byCategory + all).distinctBy { it.displayId }.filter { it.displayId != Display.DEFAULT_DISPLAY }
     }
 
-    /** Best guess for the cluster (center/driver) display, or null. */
+    /** The Zeekr cluster display (2560x536, ±5%), or null. */
     fun clusterDisplay(context: Context): Display? {
         val candidates = presentationDisplays(context)
-        // 1) exact size match when we know it
-        CLUSTER_SIZE?.let { want ->
-            candidates.firstOrNull { sizeOf(it) == want }?.let { return logPick("size", it) }
-        }
-        // 2) name hint
-        candidates.firstOrNull { nameHints(it, "cluster", "instrument") }?.let { return logPick("name", it) }
-        // 3) fallback: largest non-default presentation display
-        return candidates.maxByOrNull { val p = sizeOf(it); p.x.toLong() * p.y }?.let { logPick("largest", it) }
+        candidates.firstOrNull { val p = sizeOf(it); ZeekrDisplays.isCluster(p.x, p.y) }
+            ?.let { return logPick("cluster-size", it) }
+        candidates.firstOrNull { nameHints(it, "cluster", "instrument") }?.let { return logPick("cluster-name", it) }
+        return null
     }
 
-    /** Best guess for the HUD (windshield) display, or null. */
+    /** The Zeekr windshield HUD display (1024x576, ±5%), or null. */
     fun hudDisplay(context: Context): Display? {
         val candidates = presentationDisplays(context)
-        candidates.firstOrNull { sizeOf(it) == HUD_SIZE }?.let { return logPick("hud-size", it) }
-        candidates.firstOrNull { nameHints(it, "hud", "head-up", "headup", "secondary") }?.let { return logPick("hud-name", it) }
+        candidates.firstOrNull { val p = sizeOf(it); ZeekrDisplays.isHud(p.x, p.y) }
+            ?.let { return logPick("hud-size", it) }
+        candidates.firstOrNull { nameHints(it, "hud", "head-up", "headup") }?.let { return logPick("hud-name", it) }
         return null
     }
 

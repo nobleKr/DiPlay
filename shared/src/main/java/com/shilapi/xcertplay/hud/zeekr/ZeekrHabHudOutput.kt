@@ -15,8 +15,8 @@ import android.os.HandlerThread
 import android.util.Log
 
 class ZeekrHabHudOutput(
-    private val width: Int = 780,
-    private val height: Int = 244,
+    private val width: Int = ZeekrHudRegion.WIDTH,
+    private val height: Int = ZeekrHudRegion.HEIGHT,
 ) : AutoCloseable {
     private val tag = "Zeekr-HUD"
     private val lock = Any()
