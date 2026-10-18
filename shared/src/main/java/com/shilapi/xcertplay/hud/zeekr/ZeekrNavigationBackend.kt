@@ -24,6 +24,7 @@ object ZeekrNavigationBackend : NavigationHudBackend {
     @Volatile private var app: Context? = null
     @Volatile private var hud: ZeekrHabHudOutput? = null
     private val route = BydHudRouteState()
+    @Volatile private var sdk: ZeekrHudSdk? = null
     private var hudActive = false
 
     override fun start(context: Context) {
@@ -31,6 +32,11 @@ object ZeekrNavigationBackend : NavigationHudBackend {
         if (hud == null) {
             ZeekrDisplayRouter.clusterDisplay(context) // logs the pick; AR-HUD pixel path is on-car
             hud = ZeekrHabHudOutput().also { if (!it.start()) Log.w(TAG, "HAB pixel output not up (SDK/broadcast still active)") }
+        }
+        if (sdk == null) {
+            sdk = ZeekrHudSdk(context.applicationContext) { tag, msg -> Log.i(TAG, "sdk/$tag: $msg") }.also {
+                runCatching { it.refresh(); if (it.enabled()) it.projection(true) }
+            }
         }
     }
 
@@ -52,6 +58,7 @@ object ZeekrNavigationBackend : NavigationHudBackend {
                 routeRemainingSeconds = apple?.remainingSeconds?.toInt() ?: -1,
             )
             ZeekrHudBroadcaster.send(ctx, ZeekrHudMessage.guidance(guidance, includeState = !hudActive))
+            sdk?.publish(guidance, ZeekrHudTurnId.from(guidance.icon, guidance.roundaboutExit, 0))
             hudActive = true
         } else if (hudActive) {
             ZeekrHudBroadcaster.send(ctx, ZeekrHudMessage.ended())
@@ -65,6 +72,7 @@ object ZeekrNavigationBackend : NavigationHudBackend {
             hudActive = false
         }
         hud?.close(); hud = null
+        sdk?.end(); sdk = null
     }
 
     override fun setClusterStreamControl(control: (Boolean) -> Unit) { /* cluster map stream: on-car */ }

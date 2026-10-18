@@ -127,3 +127,12 @@ zeekr-adapt project settled how the remaining pieces work:
   channels. Ported: ZeekrHudTurnId, ZeekrHudMessage, ZeekrHudBroadcaster, wired
   into ZeekrNavigationBackend.onFrame via the engine route parse. Tests:
   ZeekrHudTest. ECARX DimInteraction + AR-HUD pixel path remain for on-car.
+
+### ECARX DimInteraction HUD channel — ported
+- ZeekrHudSdk (reflection into com.ecarx.xui.adaptapi: Device/Car/DimInteraction/
+  INaviInteraction) + ZeekrHudDisplayApi (logical display id via com.zeekr.coreservice):
+  connect, enabled() gating by vehicleType + ICarFunction, publish() turn-by-turn
+  via updateNavigationInfo (INavigationInfo dynamic proxy, exact getter mapping),
+  projection() via dimProjectionScreenRequest. Wired into ZeekrNavigationBackend
+  as a second HUD channel alongside the AMap broadcast. Reflection-only (no
+  com.ecarx.* compile dep); device gating/delivery confirmed on-car.
