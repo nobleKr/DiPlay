@@ -139,12 +139,14 @@ typedef int   (*hab_release_fn)();
 typedef int   (*hab_reg_fn)(int, HabCameraListener*);
 typedef int   (*hab_unreg_fn)(int);
 
-// TODO(device): confirm with a single logged on-car run via dumpBufferCandidates().
-// Candidate byte offset of the AHardwareBuffer/GraphicBuffer pointer carried by
-// a HabCameraBuffer. The vendor's getGraphicBuffer stores an
-// android::sp<android::GraphicBuffer>; an sp<> is a single pointer, and
-// AHardwareBuffer* is the same object as GraphicBuffer* on Android.
-static const size_t       kHcbBufferPtrOffset = 0x08;
+// Byte offset of the buffer (AHardwareBuffer/GraphicBuffer) pointer inside a
+// HabCameraBuffer. Pinned from the firmware: both set_image_attribute() and
+// receiveFrameBuffer() read this descriptor as five 32-bit ints at
+// +0x00/0x04/0x0c/0x10/0x14 (width/height/stride/format/size) and a single
+// 64-bit pointer at +0x20 (`ldr x, [buf, #0x20]`). AHardwareBuffer* and
+// GraphicBuffer* are the same object on Android. dumpBufferCandidates() still
+// logs the first words on the first call as a belt-and-suspenders check.
+static const size_t       kHcbBufferPtrOffset = 0x20;
 // TODO(device): HUD channel id for hab_camera_open() and the listener id.
 static const int          kListenerId         = 0;
 
