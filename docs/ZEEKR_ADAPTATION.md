@@ -81,3 +81,40 @@ Platform detect (open signals): presence of `com.zeekr.*` packages / Zeekr
    provider + accessibility-service capture = app-module manifest wiring, on-car.)
 7. On-car bring-up: libHabCamera JNI symbols, HUD icons, MFi key source
    (user-supplied), app-module services wiring + manifest.
+
+## On-car / app-module remainder (findings 2026-10-18)
+
+Device analysis of libHabCamera.so / libHabCameraJni.so and the user's
+zeekr-adapt project settled how the remaining pieces work:
+
+### HUD output via HAB — native, on-car
+- `libHabCamera.so` exports only the vendor C++ `com::driving::parking::`
+  `HabCameraSocket` / `HabCameraHandler`; `libHabCameraJni.so`
+  (`com.zeekr.habcamera.HabCamera`) is camera **preview** (setPreviewSurface),
+  i.e. input, not an HUD-output API.
+- The third-party `libhabmanager.so` outputs to the HUD by **subclassing the
+  vendor `HabCameraListener`** (virtuals `set_image_attribute(HabCameraBuffer*)`,
+  `notifyHabWriteBuffer(HabCameraBuffer*)`, `notifyHabRelease()`), registering it
+  with libHabCamera, and writing the frame into the HabCameraBuffer the vendor
+  hands back — the same HAB channel the parking camera uses.
+- So `jni/zeekr_hab` must be a C++ shim subclassing that vendor listener. Without
+  vendor headers the class/vtable layout is reconstructed, so it must be built
+  and tested on the car (a wrong layout crashes). Not verifiable in CI.
+
+### Media centre — reuse the user's verified bridge
+- The user's zeekr-adapt has a firmware-verified binder protocol
+  (docs/zeekr-mediacenter-protocol-verified.md, MediaBridge, CoverProvider):
+  direct bind to `ecarx.xsf.mediacenter.ZeekrMediaCenterService`
+  (exported, no permission), two-phase register, transact codes from smali.
+- Port MediaBridge/CoverProvider (his code) into the fork's app module rather
+  than reversing the third-party build. This plus ZeekrMediaTargets covers
+  "CarPlay as a source + artwork".
+
+### MFi — user-supplied keys
+- Accessory cert/key fed via a configurable source (local i2c MfiTarget or
+  remoteMfiServer); wire a config path for the user's own test keys. No
+  Carlinkit identity is bundled.
+
+### App-module wiring (not shared/)
+- MediaBrowserService, artwork FileProvider, WheelKey AccessibilityService and
+  manifest entries live in common/mobile; done when building the app for Zeekr.
