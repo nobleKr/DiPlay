@@ -1,10 +1,10 @@
 /*
  * DiPlay — Zeekr adaptation. GPLv3 (see LICENSE).
  *
- * Renders the 780x244 HUD frame and pushes each HardwareBuffer to the Zeekr
- * HAB channel via ZeekrHabNative. Skeleton: the caller feeds frames (from the
- * iAP2 RouteGuidance → ZeekrHudRouteState renderer, increment 3). Device format
- * flags are TODO pending libHabCamera ABI.
+ * Renders the 780x244 HUD frame and feeds each HardwareBuffer to the Zeekr HAB
+ * channel via ZeekrHabNative. The vendor (libHabCamera → QNX) pulls the latest
+ * submitted frame on its own buffer cycle. The caller draws into inputSurface
+ * (from the iAP2 RouteGuidance → ZeekrHudRouteState renderer, increment 3).
  */
 package com.shilapi.xcertplay.hud.zeekr
 
@@ -35,7 +35,7 @@ class ZeekrHabHudOutput(
     fun start(): Boolean = synchronized(lock) {
         if (started) return true
         if (!ZeekrHabNative.available) { Log.w(tag, "native HAB shim not loaded"); return false }
-        habHandle = ZeekrHabNative.open(width, height, /*format*/ 1)
+        habHandle = ZeekrHabNative.open(width, height, /*channel*/ ZeekrHudRegion.HAB_CHANNEL)
         if (habHandle < 0) { Log.w(tag, "HAB open failed ($habHandle)"); return false }
         val ht = HandlerThread("zeekr-hud").apply { start() }
         val h = Handler(ht.looper)
@@ -44,8 +44,8 @@ class ZeekrHabHudOutput(
             val img = r.acquireLatestImage() ?: return@setOnImageAvailableListener
             try {
                 img.hardwareBuffer?.use { buf ->
-                    if (started && ZeekrHabNative.sendHardwareBuffer(habHandle, buf) < 0) {
-                        Log.w(tag, "HAB buffer rejected")
+                    if (started && ZeekrHabNative.submitFrame(habHandle, buf) < 0) {
+                        Log.w(tag, "HAB frame rejected")
                     }
                 }
             } finally { img.close() }

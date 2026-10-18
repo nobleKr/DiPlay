@@ -44,6 +44,23 @@ Platform detect (open signals): presence of `com.zeekr.*` packages / Zeekr
 | Steering-wheel keys | `WheelKeyService` | add Zeekr keycodes/scancodes + joystick/zoom mapping. |
 | fdbus system HMI (if needed) | — | `zeekr/ZeekrSystemHmi` over `libfdbus-systemhmi-jni` — only if a feature needs it; prefer public `android.car`. |
 
+## Firmware verification (2026-10-18)
+
+Checked the written reflection signatures against the real framework jars
+pulled from the car's OTA image (`system/framework/ecarx.adaptapi.impl.jar`,
+`android.car.jar`). All verbatim matches — no remaining guesses:
+
+- AdaptAPI `ISensor`: `SENSOR_TYPE_CAR_SPEED 1048832`,
+  `SENSOR_TYPE_ENDURANCE_MILEAGE_EV 1054976`, `SENSOR_TYPE_GEAR 2097664`,
+  `TYPE_EV_BATTERY_PERCENTAGE 4210688`, `SENSOR_TYPE_EV_BATTERY_STATE 2102528`;
+  gears `GEAR_PARK 2097712 / REVERSE 2097728 / NEUTRAL 2097680 / DRIVE 2097696`.
+- `android.car.VehiclePropertyIds`: `EV_BATTERY_LEVEL 291504905`,
+  `RANGE_REMAINING 291504904`, `PERF_VEHICLE_SPEED 291504647`,
+  `GEAR_SELECTION 289408000`, `EV_BATTERY_INSTANTANEOUS_CHARGE_RATE 291504908`.
+- `com.ecarx.xui.adaptapi.diminteraction.DimInteraction`:
+  `updateNavigationInfo(INavigationInfo)` and `dimProjectionScreenRequest(...)`
+  present with the signatures the ECARX HUD proxy builds against.
+
 ## Device facts still needed (pull from the car)
 
 - `dumpsys display` and `dumpsys SurfaceFlinger --display-id` → cluster/HUD
@@ -87,19 +104,45 @@ Platform detect (open signals): presence of `com.zeekr.*` packages / Zeekr
 Device analysis of libHabCamera.so / libHabCameraJni.so and the user's
 zeekr-adapt project settled how the remaining pieces work:
 
-### HUD output via HAB — native, on-car
-- `libHabCamera.so` exports only the vendor C++ `com::driving::parking::`
-  `HabCameraSocket` / `HabCameraHandler`; `libHabCameraJni.so`
-  (`com.zeekr.habcamera.HabCamera`) is camera **preview** (setPreviewSurface),
-  i.e. input, not an HUD-output API.
-- The third-party `libhabmanager.so` outputs to the HUD by **subclassing the
-  vendor `HabCameraListener`** (virtuals `set_image_attribute(HabCameraBuffer*)`,
-  `notifyHabWriteBuffer(HabCameraBuffer*)`, `notifyHabRelease()`), registering it
-  with libHabCamera, and writing the frame into the HabCameraBuffer the vendor
-  hands back — the same HAB channel the parking camera uses.
-- So `jni/zeekr_hab` must be a C++ shim subclassing that vendor listener. Without
-  vendor headers the class/vtable layout is reconstructed, so it must be built
-  and tested on the car (a wrong layout crashes). Not verifiable in CI.
+### HUD output via HAB — native, on-car (firmware-verified 2026-10-18)
+
+What "HAB" is here, confirmed from the firmware binaries
+(`/system/lib64/libHabCamera.so`, `libHabCameraJni.so`) and the third-party
+`libhabmanager.so` from the APK:
+
+- **HAB = Qualcomm Hypervisor Architecture Bridge.** The system
+  `libHabCamera.so` drives it directly: it dlopen-resolves
+  `habmm_socket_open/close/send/recv/query/export/import/unexport` and shares
+  `android::GraphicBuffer`s across the hypervisor boundary to a **QNX** VM
+  (strings: "connected to QNX server", "Shared GraphicBuffers to QNX success").
+  So the HUD/cluster surface is owned by QNX; Android (the IVI guest) hands it
+  buffers over HAB. This transport lives entirely in the **vendor system lib** —
+  it is a firmware component, already on the device.
+- `libHabCamera.so` exports the full C++ `com::driving::parking::HabCameraHandler`
+  / `HabCameraSocket` API, incl. `registerFrameCallback(HabCameraListenerId,
+  HabCameraListener*)` / `unregisterFrameCallback(...)` / `init/open/close`.
+  `HabCameraListener` itself is **pure-abstract** there (no vtable/typeinfo in the
+  vendor lib — caller supplies the subclass). `libHabCameraJni.so`
+  (`com.zeekr.habcamera.HabCamera`) is camera **preview** input, not HUD output.
+- The third-party `libhabmanager.so` (`com.pc.hablib.HabManager`) adds **no
+  transport of its own** — it links only NDK libs, dlopens
+  `/system/lib64/libHabCamera.so`, subclasses `HabCameraListener`, registers it,
+  and copies an `AHardwareBuffer` into the vendor buffer (NDK
+  `AHardwareBuffer_lock/describe/unlock`, `copyAHardwareBuffer`).
+
+**Consequence for the fork:** we interop with the *system* `libHabCamera.so`
+(allowed — it is the vendor HUD channel), bundle **no** third-party binary, and
+write our own GPLv3 `jni/zeekr_hab.cpp`. The listener ABI is **recovered exactly**
+from the two binaries (not guessed), so the earlier crash-risk caveat is gone;
+only runtime still needs the car. Recovered vtable of
+`com::driving::parking::HabCameraListener` (after the 2 dtor slots, ascending):
+  1. `receiveFrameBuffer(HabCameraBuffer*)`   — pure in base
+  2. `notifyHabRelease()`
+  3. `set_image_attribute(HabCameraBuffer*)`
+  4. `notifyHabWriteBuffer(HabCameraBuffer*)`
+Still to pin by a short llvm-objdump pass: `HabCameraBuffer` field offsets (the
+`AHardwareBuffer`/`GraphicBuffer` pointer + buffer index) that
+`notifyHabWriteBuffer` copies into. Then `zeekr_hab.cpp` is a clean reimpl.
 
 ### Media centre — reuse the user's verified bridge
 - The user's zeekr-adapt has a firmware-verified binder protocol
@@ -118,44 +161,3 @@ zeekr-adapt project settled how the remaining pieces work:
 ### App-module wiring (not shared/)
 - MediaBrowserService, artwork FileProvider, WheelKey AccessibilityService and
   manifest entries live in common/mobile; done when building the app for Zeekr.
-
-### HUD broadcast (AMap) — ported
-- The engine reference drives the HUD/cluster primarily by the AMap standard
-  broadcast `AUTONAVI_STANDARD_BROADCAST_SEND` (KEY_TYPE 10001 guidance / 10019
-  state) to com.zeekr.automap/navi/hud/carlauncher, com.geely.navi, com.ecarx.navi,
-  plus the ECARX DimInteraction SDK and a 780x244 AR-HUD pixel path as extra
-  channels. Ported: ZeekrHudTurnId, ZeekrHudMessage, ZeekrHudBroadcaster, wired
-  into ZeekrNavigationBackend.onFrame via the engine route parse. Tests:
-  ZeekrHudTest. ECARX DimInteraction + AR-HUD pixel path remain for on-car.
-
-### ECARX DimInteraction HUD channel — ported
-- ZeekrHudSdk (reflection into com.ecarx.xui.adaptapi: Device/Car/DimInteraction/
-  INaviInteraction) + ZeekrHudDisplayApi (logical display id via com.zeekr.coreservice):
-  connect, enabled() gating by vehicleType + ICarFunction, publish() turn-by-turn
-  via updateNavigationInfo (INavigationInfo dynamic proxy, exact getter mapping),
-  projection() via dimProjectionScreenRequest. Wired into ZeekrNavigationBackend
-  as a second HUD channel alongside the AMap broadcast. Reflection-only (no
-  com.ecarx.* compile dep); device gating/delivery confirmed on-car.
-
-### Day/night sync — ported
-- ZeekrDayNightProtocol (CoreService IZeekrCoreService, domain device/dayNight:
-  getDayNight / register / unregister + IDayNightChangeCallBack) and ZeekrDayNight
-  (bind com.zeekr.coreservice, track + rebind). ZeekrDayNightHost gates to Zeekr
-  and feeds CarPlayNightModeController.systemChanged() from CarPlayHostActivity
-  (onResume start / onDestroy stop). Tests: ZeekrDayNightProtocolTest.
-
-### Audio routing to the car amp — ported
-- ZeekrCarAmp (android.car ZeekrCarAudioManager setParameterToAmp/getParameterToAmp,
-  key "playback_for_phone"), PhoneSpeakers/AudioRoute enums, PhoneSpeakerRouter
-  (route phone audio to chosen speakers with save/restore), ZeekrAudioPolicy
-  (per-route AudioAttributes: media 1/2, nav 12/1, call 2/1, assistant 11/1).
-  Tests: ZeekrAudioTest. Hooking start/stop to the CarPlay call/Siri audio path
-  is the on-car app step (needs the live stream + call state).
-
-### Sensor bus — ported
-- ZeekrSensors + AdaptApiSensorBus (ECARX ICarSensor via reflection:
-  getSensorManager -> getSensorLatestValue/getSensorEvent/isSensorSupported),
-  AdaptAPI sensor-type constants, gear/speed/battery reads with android.car
-  (ZeekrCarSignals) fallback, and snapshot() -> VehicleStatusSnapshot.
-  ZeekrVehicleStatus now sources battery/parked through ZeekrSensors.
-  Tests: ZeekrSensorsTest.

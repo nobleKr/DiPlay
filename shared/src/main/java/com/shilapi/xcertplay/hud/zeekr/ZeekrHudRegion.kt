@@ -12,4 +12,8 @@ object ZeekrHudRegion {
     const val HEIGHT = 244
     // x, y, w, h of the active area inside the buffer (full frame on the 001).
     val PROFILE = intArrayOf(0, 0, WIDTH, HEIGHT)
+
+    // Channel id passed to libHabCamera hab_camera_open(). TODO(device): confirm
+    // the HUD channel on this firmware (dumpsys / logged on first on-car run).
+    const val HAB_CHANNEL = 0
 }

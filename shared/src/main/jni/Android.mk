@@ -11,6 +11,17 @@ LOCAL_SRC_FILES := local_hotspot_radio.c
 LOCAL_CFLAGS := -Wall -Wextra -Werror
 include $(BUILD_SHARED_LIBRARY)
 
+# Zeekr HUD (HAB) output shim. Interops at runtime with the vendor system
+# /system/lib64/libHabCamera.so via dlopen — nothing vendor is linked here, and
+# no third-party libhabmanager code is used. C++ (listener subclass).
+include $(CLEAR_VARS)
+LOCAL_MODULE := zeekr_hab
+LOCAL_SRC_FILES := zeekr_hab.cpp
+# No C++ runtime (APP_STL := none): no RTTI, no exceptions, no STL in the source.
+LOCAL_CPPFLAGS := -Wall -Wextra -fno-rtti -fno-exceptions -std=c++17
+LOCAL_LDLIBS := -llog -landroid -ldl
+include $(BUILD_SHARED_LIBRARY)
+
 include $(CLEAR_VARS)
 LOCAL_MODULE := speex_echo
 LOCAL_SRC_FILES := speex_echo_jni.c \
