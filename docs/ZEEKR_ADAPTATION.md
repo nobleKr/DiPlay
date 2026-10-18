@@ -61,9 +61,10 @@ Platform detect (open signals): presence of `com.zeekr.*` packages / Zeekr
    `zeekr_hab.c` skeletons (device constants = TODO). **done**
 2. `NavigationHudBackend` interface + `BydNavigationBackend` (delegate, no BYD
    change) + `ZeekrNavigationBackend` skeleton + `HudBackends` selector.
-   **done (additive).** Still pending (needs a build env): replace the 8
-   `BydNavigationOutputs.*` call sites in `CarPlayController` with a
-   `HudBackends.select(context)` instance.
-3. HUD route state + maneuver icon map; bring up HAB output on emulator stub.
-4. Vehicle data (VHAL), media-center source, wheel keys.
-5. On-car bring-up with the dumpsys facts above.
+   **done (additive).**
+3. Wire `CarPlayController` to `HudBackends.select(context)` (field `nav`);
+   all 8 `BydNavigationOutputs.*` call sites now go through the backend.
+   BYD delegates 1:1, so BYD behaviour is unchanged. **done — needs `./gradlew` verify.**
+4. HUD route state + maneuver icon map; bring up HAB output on emulator stub.
+5. Vehicle data (VHAL), media-center source, wheel keys.
+6. On-car bring-up with the dumpsys facts above.
