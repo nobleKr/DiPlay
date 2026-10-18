@@ -143,3 +143,11 @@ zeekr-adapt project settled how the remaining pieces work:
   (bind com.zeekr.coreservice, track + rebind). ZeekrDayNightHost gates to Zeekr
   and feeds CarPlayNightModeController.systemChanged() from CarPlayHostActivity
   (onResume start / onDestroy stop). Tests: ZeekrDayNightProtocolTest.
+
+### Audio routing to the car amp — ported
+- ZeekrCarAmp (android.car ZeekrCarAudioManager setParameterToAmp/getParameterToAmp,
+  key "playback_for_phone"), PhoneSpeakers/AudioRoute enums, PhoneSpeakerRouter
+  (route phone audio to chosen speakers with save/restore), ZeekrAudioPolicy
+  (per-route AudioAttributes: media 1/2, nav 12/1, call 2/1, assistant 11/1).
+  Tests: ZeekrAudioTest. Hooking start/stop to the CarPlay call/Siri audio path
+  is the on-car app step (needs the live stream + call state).
