@@ -9,7 +9,6 @@ package com.shilapi.xcertplay.zeekr.audio
 
 import android.content.Context
 import android.media.AudioAttributes
-import android.util.Log
 
 enum class PhoneSpeakers(val id: Int, val value: String?) {
     AUTO(0, null), DRIVER(1, "driver"), FRONT_ALL(2, "front_all"),
@@ -62,7 +61,7 @@ class PhoneSpeakerRouter(private val amp: PhoneSpeakerAmp?) {
         val value = speakers.value ?: return
         if (active.isEmpty()) saved = amp.read()
         active[stream] = speakers
-        if (amp.write(value)) Log.i(TAG, "playback_for_phone=$value (was $saved)")
+        amp.write(value)
     }
 
     @Synchronized
@@ -75,8 +74,6 @@ class PhoneSpeakerRouter(private val amp: PhoneSpeakerAmp?) {
             else -> saved?.let { amp.write(it); saved = null }
         }
     }
-
-    companion object { private const val TAG = "ZeekrPhoneSpeakers" }
 }
 
 /** Per-route AudioAttributes (usage/contentType) as the engine reference builds them. */
