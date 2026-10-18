@@ -52,8 +52,20 @@
 #include <android/hardware_buffer_jni.h>
 #include <dlfcn.h>
 #include <pthread.h>
+#include <stddef.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
+
+// APP_STL := none provides no C++ runtime. Our only objects are static (no heap
+// use), but a virtual destructor's deleting variant references operator delete,
+// so we supply thin malloc/free-backed operators to satisfy the linker.
+void* operator new(size_t n)        { return malloc(n); }
+void* operator new[](size_t n)      { return malloc(n); }
+void  operator delete(void* p) noexcept        { free(p); }
+void  operator delete[](void* p) noexcept      { free(p); }
+void  operator delete(void* p, size_t) noexcept   { free(p); }
+void  operator delete[](void* p, size_t) noexcept { free(p); }
 
 #define TAG "zeekr_hab_jni"
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, TAG, __VA_ARGS__)
