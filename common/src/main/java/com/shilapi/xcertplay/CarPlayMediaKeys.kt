@@ -319,6 +319,7 @@ internal object CarPlayMediaKeys {
         }
         Log.i(TAG, "media keys active focusDisabled=$focusDisabled focusGranted=$granted")
         WheelKeyLog.note("media keys active focusDisabled=$focusDisabled focusGranted=$granted")
+        session?.let { com.shilapi.xcertplay.zeekr.mediabridge.ZeekrMediaBridgeHost.onSessionStarted(context, it) }
     }
 
     private fun forwardGrantedFocusLocked() {
@@ -375,6 +376,7 @@ internal object CarPlayMediaKeys {
             it.isActive = false
             it.release()
         }
+        com.shilapi.xcertplay.zeekr.mediabridge.ZeekrMediaBridgeHost.onSessionReleased()
         session = null
         mediaAudioActive = false
         nowPlaying = CarPlayNowPlaying()

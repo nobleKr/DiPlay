@@ -37,6 +37,11 @@
     </queries>
     <application>
         <provider
+            android:name="com.shilapi.xcertplay.zeekr.mediabridge.CoverProvider"
+            android:authorities="${applicationId}.dhucovers"
+            android:exported="false"
+            android:grantUriPermissions="true" />
+        <provider
             android:name="com.shilapi.xcertplay.CrashRecordInstaller"
             android:authorities="${applicationId}.crash-record"
             android:exported="false" />
