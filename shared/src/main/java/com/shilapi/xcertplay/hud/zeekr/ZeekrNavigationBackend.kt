@@ -11,7 +11,6 @@ import android.content.Context
 import android.util.Log
 import com.shilapi.xcertplay.hud.NavigationHudBackend
 import com.shilapi.xcertplay.iap2.wire.Iap2Frame
-import com.shilapi.xcertplay.transport.VehicleSpeedReading
 import com.shilapi.xcertplay.transport.VehicleSpeedSource
 import com.shilapi.xcertplay.transport.VehicleStatusProvider
 
@@ -43,12 +42,7 @@ object ZeekrNavigationBackend : NavigationHudBackend {
     override fun batteryStatus(context: Context): VehicleStatusProvider =
         ZeekrVehicleStatus.batteryProvider(context)
 
-    // TODO(increment 5): wheel-speed sampler for tunnel dead reckoning.
-    override fun wheelSpeed(context: Context): VehicleSpeedSource = object : VehicleSpeedSource {
-        override fun start() {}
-        override fun stop() {}
-        override fun drain(): VehicleSpeedReading? = null
-    }
+    override fun wheelSpeed(context: Context): VehicleSpeedSource = ZeekrWheelSpeedSource(context)
 
     override fun parked(context: Context): Boolean? = ZeekrVehicleStatus.parked(context)
 }

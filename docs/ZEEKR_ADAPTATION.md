@@ -71,6 +71,9 @@ Platform detect (open signals): presence of `com.zeekr.*` packages / Zeekr
    property ids from the engine reference). Wired into ZeekrNavigationBackend
    (battery + parked) and ZeekrDisplayRouter. Unit test: ZeekrDisplaysTest.
    **done.**
-5. HUD route state + maneuver icon map; wheel-speed sampler.
+5. Wheel-speed source (ZeekrWheelSpeed/ZeekrSpeedBuffer) via ZeekrCarSignals,
+   wired into ZeekrNavigationBackend.wheelSpeed. Unit test: ZeekrSpeedBufferTest.
+   **done.** (HUD route-state + maneuver icon map folded into on-car step —
+   needs the Zeekr HUD icon set + libHabCamera JNI.)
 6. Media-center source + artwork, wheel keys; libHabCamera JNI symbols.
 7. On-car bring-up + MFi key source (user-supplied).
