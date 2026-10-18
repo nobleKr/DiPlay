@@ -118,3 +118,12 @@ zeekr-adapt project settled how the remaining pieces work:
 ### App-module wiring (not shared/)
 - MediaBrowserService, artwork FileProvider, WheelKey AccessibilityService and
   manifest entries live in common/mobile; done when building the app for Zeekr.
+
+### HUD broadcast (AMap) — ported
+- The engine reference drives the HUD/cluster primarily by the AMap standard
+  broadcast `AUTONAVI_STANDARD_BROADCAST_SEND` (KEY_TYPE 10001 guidance / 10019
+  state) to com.zeekr.automap/navi/hud/carlauncher, com.geely.navi, com.ecarx.navi,
+  plus the ECARX DimInteraction SDK and a 780x244 AR-HUD pixel path as extra
+  channels. Ported: ZeekrHudTurnId, ZeekrHudMessage, ZeekrHudBroadcaster, wired
+  into ZeekrNavigationBackend.onFrame via the engine route parse. Tests:
+  ZeekrHudTest. ECARX DimInteraction + AR-HUD pixel path remain for on-car.
