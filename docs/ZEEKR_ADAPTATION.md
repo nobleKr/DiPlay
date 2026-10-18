@@ -151,3 +151,11 @@ zeekr-adapt project settled how the remaining pieces work:
   (per-route AudioAttributes: media 1/2, nav 12/1, call 2/1, assistant 11/1).
   Tests: ZeekrAudioTest. Hooking start/stop to the CarPlay call/Siri audio path
   is the on-car app step (needs the live stream + call state).
+
+### Sensor bus — ported
+- ZeekrSensors + AdaptApiSensorBus (ECARX ICarSensor via reflection:
+  getSensorManager -> getSensorLatestValue/getSensorEvent/isSensorSupported),
+  AdaptAPI sensor-type constants, gear/speed/battery reads with android.car
+  (ZeekrCarSignals) fallback, and snapshot() -> VehicleStatusSnapshot.
+  ZeekrVehicleStatus now sources battery/parked through ZeekrSensors.
+  Tests: ZeekrSensorsTest.
