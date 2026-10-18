@@ -1152,6 +1152,7 @@ class CarPlayHostActivity : ComponentActivity() {
                 nightSchedule)
         }
         nightModeController.resume(systemNight)
+        com.shilapi.xcertplay.zeekr.daynight.ZeekrDayNightHost.start(this) { night -> runOnUiThread { nightModeController.systemChanged(night) } }
         AppAppearanceRuntime.publishHost(this, darkMode)
         refreshAppAppearance()
         if (!menuOpen) {
@@ -1866,6 +1867,8 @@ class CarPlayHostActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+
+        com.shilapi.xcertplay.zeekr.daynight.ZeekrDayNightHost.stop()
         mainHandler.removeCallbacks(hideTemporarySystemBars)
         discardLastPicture()
         if (pictureCopyThreadStarted) pictureCopyThread.quitSafely()

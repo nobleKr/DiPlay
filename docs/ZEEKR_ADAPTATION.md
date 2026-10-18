@@ -136,3 +136,10 @@ zeekr-adapt project settled how the remaining pieces work:
   projection() via dimProjectionScreenRequest. Wired into ZeekrNavigationBackend
   as a second HUD channel alongside the AMap broadcast. Reflection-only (no
   com.ecarx.* compile dep); device gating/delivery confirmed on-car.
+
+### Day/night sync — ported
+- ZeekrDayNightProtocol (CoreService IZeekrCoreService, domain device/dayNight:
+  getDayNight / register / unregister + IDayNightChangeCallBack) and ZeekrDayNight
+  (bind com.zeekr.coreservice, track + rebind). ZeekrDayNightHost gates to Zeekr
+  and feeds CarPlayNightModeController.systemChanged() from CarPlayHostActivity
+  (onResume start / onDestroy stop). Tests: ZeekrDayNightProtocolTest.
