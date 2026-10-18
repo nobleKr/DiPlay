@@ -57,9 +57,13 @@ Platform detect (open signals): presence of `com.zeekr.*` packages / Zeekr
 
 ## Increments
 
-1. **(this commit)** seam plan + `ZeekrDisplayRouter` + `ZeekrHabHudOutput` /
-   `ZeekrHabNative` / `zeekr_hab.c` skeletons (device constants = TODO).
-2. Backend interface + wire `CarPlayController` to it (BYD unchanged).
+1. seam plan + `ZeekrDisplayRouter` + `ZeekrHabHudOutput` / `ZeekrHabNative` /
+   `zeekr_hab.c` skeletons (device constants = TODO). **done**
+2. `NavigationHudBackend` interface + `BydNavigationBackend` (delegate, no BYD
+   change) + `ZeekrNavigationBackend` skeleton + `HudBackends` selector.
+   **done (additive).** Still pending (needs a build env): replace the 8
+   `BydNavigationOutputs.*` call sites in `CarPlayController` with a
+   `HudBackends.select(context)` instance.
 3. HUD route state + maneuver icon map; bring up HAB output on emulator stub.
 4. Vehicle data (VHAL), media-center source, wheel keys.
 5. On-car bring-up with the dumpsys facts above.
