@@ -146,6 +146,7 @@ public final class MediaBridge {
     private static final int TX_PI_GET_ARTWORK        = 0x10;
     private static final int TX_PI_GET_UUID           = 24;   // 0x18 -> per-track uuid (recovery/dedup)
     private static final int TX_PI_GET_APP_NAME       = 0x19;
+    private static final int TX_PI_GET_APP_ICON       = 0x1a;  // getAppIcon() -> Uri
     private static final int TX_PI_GET_PACKAGE_NAME   = 0x1b;
     private static final int TX_PI_GET_PLAYING_LIST_ID = 30;  // 0x1e -> "info id" in server log
     private static final int TX_PI_GET_PLAYING_LIST_TYPE = 32; // 0x20 -> list type (int)
@@ -1252,6 +1253,23 @@ public final class MediaBridge {
     }
 
     /** Prefer http(s) ART_URI (media-center fetches it); fall back to CoverProvider content://. */
+    private volatile Uri appIconUri;
+    /** DiPlay's own launcher icon as a content:// Uri, published once and granted to the media centre. */
+    private Uri appIconUri() {
+        Uri u = appIconUri;
+        if (u == null) {
+            u = ZeekrAppIcon.publish(appContext);
+            appIconUri = u;
+        }
+        if (u != null) {
+            try {
+                appContext.grantUriPermission(MEDIACENTER_PKG, u, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            } catch (Throwable ignored) { }
+            return u;
+        }
+        return Uri.EMPTY;
+    }
+
     private Uri resolveArtwork(MediaMetadata m) {
         if (m == null) {
             return Uri.EMPTY;
@@ -1530,6 +1548,7 @@ public final class MediaBridge {
                 case TX_PI_GET_PLAYBACK_STATUS: data.enforceInterface(DESC_PLAYBACK_INFO); replyInt(reply, status(p)); return true;
                 case TX_PI_GET_ARTWORK: data.enforceInterface(DESC_PLAYBACK_INFO); replyUri(reply, resolveArtwork(m)); return true;
                 case TX_PI_GET_APP_NAME:data.enforceInterface(DESC_PLAYBACK_INFO); replyStr(reply, appLabel()); return true;
+                case TX_PI_GET_APP_ICON: data.enforceInterface(DESC_PLAYBACK_INFO); replyUri(reply, appIconUri()); return true;
                 case TX_PI_GET_PACKAGE_NAME: data.enforceInterface(DESC_PLAYBACK_INFO); replyStr(reply, appContext.getPackageName()); return true;
                 case TX_PI_GET_PLAYING_LIST_ID: data.enforceInterface(DESC_PLAYBACK_INFO); replyStr(reply, mediaId(m)); return true;
                 case TX_PI_GET_UUID:            data.enforceInterface(DESC_PLAYBACK_INFO); replyStr(reply, mediaId(m)); return true;

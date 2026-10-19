@@ -42,6 +42,11 @@
             android:exported="false"
             android:grantUriPermissions="true" />
         <provider
+            android:name="com.shilapi.xcertplay.zeekr.mediabridge.ZeekrAppIconProvider"
+            android:authorities="${applicationId}.app-icon"
+            android:exported="false"
+            android:grantUriPermissions="true" />
+        <provider
             android:name="com.shilapi.xcertplay.CrashRecordInstaller"
             android:authorities="${applicationId}.crash-record"
             android:exported="false" />
