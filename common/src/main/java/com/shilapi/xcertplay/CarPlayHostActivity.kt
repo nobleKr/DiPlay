@@ -4999,8 +4999,18 @@ class CarPlayHostActivity : ComponentActivity() {
             mainBufferedAudio = AirPlayPersistence.loadMainBufferedAudio(this),
             speechWithout8And16Khz = AirPlayPersistence.loadSpeechWithout8And16Khz(this),
             disableAudioOutput = carBluetoothAudio,
+            // Zeekr windshield HUD (card/map) — advertised only when a HUD display is present.
+            hudCard = zeekrHudDisplayPresent() && ZeekrHudSettings.cardEnabled(this),
+            hudMap = zeekrHudDisplayPresent() && ZeekrHudSettings.mapEnabled(this),
+            hudMapSizePercent = ZeekrHudSettings.sizePercent(this),
+            hudMapMarkerHorizontal = ZeekrHudSettings.markerHorizontal(this),
+            hudMapMarkerVertical = ZeekrHudSettings.markerVertical(this),
         )
     }
+
+    /** A Zeekr windshield HUD display is present (gates advertising the HUD card/map screens). */
+    private fun zeekrHudDisplayPresent(): Boolean =
+        runCatching { com.shilapi.xcertplay.hud.zeekr.ZeekrDisplayRouter.hudDisplay(this) != null }.getOrDefault(false)
 
     /** Car Bluetooth audio: shows whether the iPhone keeps A2DP/HFP with the car now and once CarPlay runs. */
     private fun logCarBluetoothAudio() {
