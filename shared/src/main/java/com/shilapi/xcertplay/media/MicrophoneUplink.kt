@@ -29,6 +29,8 @@ internal class MicrophoneUplink(
     private val config: MicrophoneConfig,
     private val onDiagnostic: (String) -> Unit = {},
     private val speakerphoneCall: Boolean = false,
+    /** The Zeekr 001 DHU captures poorly on VOICE_RECOGNITION for the assistant, so it uses MIC. */
+    private val zeekrHeadUnit: Boolean = false,
     /** The call's far-end audio; when set, telephony capture runs DiPlay's own echo canceller. */
     private val echoReference: EchoReference? = null,
     private val echoCancellerFactory: (Int, Int, Int) -> CallEchoCanceller? = { frame, rate, tail ->
@@ -82,14 +84,14 @@ internal class MicrophoneUplink(
                 carPhoneState = PhoneAudioRoute.carPlayCallsUseCarAudio(),
                 geelyHeadUnit = com.shilapi.xcertplay.network.GeelyHeadUnit.detected,
             )
-            // The Geely/Lynk head unit only opens the microphone for the voice-communication
-            // source; its voice-recognition source records silence, so Siri never hears.
+            // Assistant capture source is head-unit specific: the Zeekr 001 needs the plain
+            // microphone (its VOICE_RECOGNITION source captures poorly), while Geely/Lynk only
+            // open the mic on VOICE_COMMUNICATION (their VOICE_RECOGNITION records silence).
             config.audioType == "speechrecognition" ->
-                if (com.shilapi.xcertplay.network.GeelyHeadUnit.detected) {
-                    MediaRecorder.AudioSource.VOICE_COMMUNICATION
-                } else {
-                    MediaRecorder.AudioSource.VOICE_RECOGNITION
-                }
+                speechRecognitionMicrophoneSource(
+                    zeekrHeadUnit = zeekrHeadUnit,
+                    geelyHeadUnit = com.shilapi.xcertplay.network.GeelyHeadUnit.detected,
+                )
             else -> MediaRecorder.AudioSource.MIC
         }
         val nextEncoder = if (config.codec == AudioCodecKind.OPUS) {
@@ -525,6 +527,18 @@ internal class MicrophoneUplink(
  * service ends up with, gives a normal level with no clipping, and the car still suppresses the far end's
  * echo on it. Geely/Lynk head units record silence on VOICE_RECOGNITION, so they keep the old choice.
  */
+/**
+ * Assistant (speechrecognition) capture source. The Zeekr 001's VOICE_RECOGNITION source
+ * captures poorly, so it uses the plain microphone — matching the engine's Zeekr build. Geely/Lynk
+ * record silence on VOICE_RECOGNITION, so they use VOICE_COMMUNICATION; everyone else keeps
+ * VOICE_RECOGNITION, the stock CarPlay choice.
+ */
+internal fun speechRecognitionMicrophoneSource(zeekrHeadUnit: Boolean, geelyHeadUnit: Boolean): Int = when {
+    zeekrHeadUnit -> MediaRecorder.AudioSource.MIC
+    geelyHeadUnit -> MediaRecorder.AudioSource.VOICE_COMMUNICATION
+    else -> MediaRecorder.AudioSource.VOICE_RECOGNITION
+}
+
 internal fun telephonyMicrophoneSource(speakerphoneCall: Boolean, carPhoneState: Boolean, geelyHeadUnit: Boolean): Int = when {
     carPhoneState && !geelyHeadUnit -> MediaRecorder.AudioSource.VOICE_RECOGNITION
     speakerphoneCall -> MediaRecorder.AudioSource.MIC

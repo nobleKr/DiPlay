@@ -32,7 +32,7 @@ object HudBackends {
      * marker on the 001 (presence of com.zeekr.* system packages and/or
      * ro.* build props) and tighten this; keep BYD as the safe default.
      */
-    private fun isZeekr(context: Context): Boolean {
+    internal fun isZeekr(context: Context): Boolean {
         val pm = context.packageManager
         val markers = listOf("com.zeekr.carlauncher", "com.zeekr.hud", "com.ecarx.xui.adaptapi")
         val hasPkg = markers.any { pkg ->
