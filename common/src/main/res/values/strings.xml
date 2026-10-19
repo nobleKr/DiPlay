@@ -1013,4 +1013,15 @@
 
     <string name="settings_hotspot_interface">Hotspot interface (optional)</string>
     <string name="settings_hotspot_interface_description">Only for head units that run their hotspot on a network interface Android does not report as a Wi-Fi hotspot, for example eth0.3 on some Geely, Lynk &amp; Co and other Qualcomm units. Leave empty to find it automatically.</string>
+    <string name="zeekr_hud_title">Windshield HUD (experimental)</string>
+    <string name="zeekr_hud_map">Live map on HUD</string>
+    <string name="zeekr_hud_map_description">Shows the iPhone\'s moving map on the windshield head-up display. Reconnects CarPlay.</string>
+    <string name="zeekr_hud_card">Turn card on HUD</string>
+    <string name="zeekr_hud_card_description">Shows the next-turn instruction card on the windshield head-up display. Reconnects CarPlay.</string>
+    <string name="zeekr_hud_size">HUD map size</string>
+    <string name="zeekr_hud_size_option">%1$d %%</string>
+    <string name="zeekr_hud_marker_horizontal">HUD map horizontal</string>
+    <string name="zeekr_hud_marker_vertical">HUD map vertical</string>
+    <string name="zeekr_hud_reset_marker">Reset HUD map to centre</string>
+    <string name="zeekr_hud_note">The head-up display must be turned on in the car\'s own settings. Changes apply when CarPlay reconnects.</string>
 </resources>

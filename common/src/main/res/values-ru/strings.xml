@@ -910,4 +910,15 @@
 
     <string name="settings_hotspot_interface">Интерфейс точки доступа (необязательно)</string>
     <string name="settings_hotspot_interface_description">Только для головных устройств, которые держат точку доступа на сетевом интерфейсе, не считающемся в Android точкой доступа Wi-Fi, например eth0.3 на некоторых устройствах Geely, Lynk &amp; Co и других Qualcomm. Оставьте пустым для автоматического поиска.</string>
+    <string name="zeekr_hud_title">Проекционный дисплей (экспериментально)</string>
+    <string name="zeekr_hud_map">Карта на HUD</string>
+    <string name="zeekr_hud_map_description">Показывает подвижную карту iPhone на проекционном дисплее. Переподключает CarPlay.</string>
+    <string name="zeekr_hud_card">Карточка манёвра на HUD</string>
+    <string name="zeekr_hud_card_description">Показывает карточку следующего манёвра на проекционном дисплее. Переподключает CarPlay.</string>
+    <string name="zeekr_hud_size">Размер карты на HUD</string>
+    <string name="zeekr_hud_size_option">%1$d %%</string>
+    <string name="zeekr_hud_marker_horizontal">Карта HUD по горизонтали</string>
+    <string name="zeekr_hud_marker_vertical">Карта HUD по вертикали</string>
+    <string name="zeekr_hud_reset_marker">Сбросить карту HUD по центру</string>
+    <string name="zeekr_hud_note">Проекционный дисплей должен быть включён в настройках автомобиля. Изменения вступают в силу при переподключении CarPlay.</string>
 </resources>

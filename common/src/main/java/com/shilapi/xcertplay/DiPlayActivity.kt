@@ -126,6 +126,7 @@ internal enum class SettingsSection {
     NAVIGATION_WHEEL,
     LOCATION,
     CLUSTER_MAP,
+    ZEEKR_HUD,
     LAUNCHER_BUBBLE,
     BYD_NAVIGATION,
     PERMISSIONS_AND_HELP,
@@ -155,6 +156,7 @@ internal object SettingsInformationArchitecture {
         SettingsCategory.DIAGNOSTICS to setOf(SettingsSection.DIAGNOSTICS),
         SettingsCategory.ADVANCED to setOf(
             SettingsSection.CLUSTER_MAP,
+            SettingsSection.ZEEKR_HUD,
             SettingsSection.LAUNCHER_BUBBLE,
             SettingsSection.EXPERIMENTAL_DISPLAY,
             SettingsSection.ADVANCED_MEDIA,
@@ -2438,6 +2440,55 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
                 }
             }
         }
+        // Zeekr 001 projects the iPhone's live map and/or turn card onto the windshield HUD, as its own
+        // CarPlay display. Only this car's HUD audience sees the card. The /info advertises those screens at
+        // connection, so every change here reconnects CarPlay. Mirrors the engine's HUD output settings.
+        if (zeekrHudDisplayPresent()) filteredSection(content, SettingsSection.ZEEKR_HUD,
+            getString(R.string.zeekr_hud_title), R.drawable.ic_dp_dashboard) { card ->
+            val mapOn = ZeekrHudSettings.mapEnabled(this)
+            val cardOn = ZeekrHudSettings.cardEnabled(this)
+            reconnectingToggle(card, getString(R.string.zeekr_hud_map),
+                getString(R.string.zeekr_hud_map_description), mapOn) {
+                ZeekrHudSettings.setMapEnabled(this, it)
+                render()
+            }
+            reconnectingToggle(card, getString(R.string.zeekr_hud_card),
+                getString(R.string.zeekr_hud_card_description), cardOn) {
+                ZeekrHudSettings.setCardEnabled(this, it)
+                render()
+            }
+            // Size and marker only shape the live-map stream; the turn card is a fixed-size glass card.
+            if (mapOn) {
+                card.addView(overlaySliderRow(
+                    getString(R.string.zeekr_hud_size),
+                    CarPlayClusterDisplay.hudMapSizePresets,
+                    ZeekrHudSettings.sizePercent(this),
+                ) { getString(R.string.zeekr_hud_size_option, it) }
+                    .also { it.onSave = { v -> ZeekrHudSettings.setSizePercent(this, v) } }
+                    .also { it.onCommit = { markReconnectNeeded() } })
+                card.addView(overlaySliderRow(
+                    getString(R.string.zeekr_hud_marker_horizontal),
+                    CarPlayClusterDisplay.hudMapHorizontalSteps.toList(),
+                    ZeekrHudSettings.markerHorizontal(this),
+                ) { hudMarkerLabel(it, getString(R.string.marker_left), getString(R.string.marker_right)) }
+                    .also { it.onSave = { v -> ZeekrHudSettings.setMarkerHorizontal(this, v) } }
+                    .also { it.onCommit = { markReconnectNeeded() } })
+                card.addView(overlaySliderRow(
+                    getString(R.string.zeekr_hud_marker_vertical),
+                    CarPlayClusterDisplay.hudMapVerticalSteps.toList(),
+                    ZeekrHudSettings.markerVertical(this),
+                ) { hudMarkerLabel(it, getString(R.string.marker_up), getString(R.string.marker_down)) }
+                    .also { it.onSave = { v -> ZeekrHudSettings.setMarkerVertical(this, v) } }
+                    .also { it.onCommit = { markReconnectNeeded() } })
+                card.addView(button(getString(R.string.zeekr_hud_reset_marker), false) {
+                    ZeekrHudSettings.setMarkerHorizontal(this, 0)
+                    ZeekrHudSettings.setMarkerVertical(this, 0)
+                    render()
+                    markReconnectNeeded()
+                }, matchButton(10, 56))
+            }
+            card.addView(label(getString(R.string.zeekr_hud_note), 14, MUTED).apply { setPadding(0, dp(10), 0, 0) })
+        }
         // FCE head units show this card for their cluster's navigation view, which has its own opt-in.
         val bydNavigation = BydOutputSettings.available(this)
         if (bydNavigation || BydOutputSettings.fceClusterAvailable()) filteredSection(content, SettingsSection.BYD_NAVIGATION,
@@ -3955,6 +4006,16 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
             else -> "$positive $delta %"
         }
     }
+
+    // The Zeekr HUD-map marker moves in fixed steps (not percent), centred at 0; see CarPlayClusterDisplay.
+    private fun hudMarkerLabel(step: Int, negative: String, positive: String): String = when {
+        step == 0 -> getString(R.string.marker_centre_default)
+        step < 0 -> "$negative ${-step}"
+        else -> "$positive $step"
+    }
+
+    private fun zeekrHudDisplayPresent(): Boolean =
+        runCatching { com.shilapi.xcertplay.hud.zeekr.ZeekrDisplayRouter.hudDisplay(this) != null }.getOrDefault(false)
 
     private fun showClusterAccessSetup() {
         val command = "adb shell appops set $packageName GET_USAGE_STATS allow"
