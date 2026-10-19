@@ -454,6 +454,7 @@ class CarPlayHostActivity : ComponentActivity() {
     private var currentSurfaceTexture: SurfaceTexture? = null
     private var clusterPresentation: ClusterMapPresentation? = null
     private var clusterSurface: Surface? = null
+    private var zeekrHudHost: ZeekrHudHost? = null
     private var clusterMonitor: DiLink51ClusterMonitor? = null
     private var detectedCluster = ClusterActivityState.Snapshot(null, false)
     // Keep one surface per layer alive, including while its map card is hidden.
@@ -5310,6 +5311,8 @@ class CarPlayHostActivity : ComponentActivity() {
                     if (controllerGeneration != restartGeneration || startupRetryStopped) return@runOnUiThread
                     startupRetryBudget.disconnected()
                     activeAirPlaySession = null
+                    zeekrHudHost?.stop()
+                    zeekrHudHost = null
                     clearIphoneCornerMask()
                     CarPlayBackgroundSession.active = false
                     callPopupSessionReady = false
@@ -5555,6 +5558,9 @@ class CarPlayHostActivity : ComponentActivity() {
         sink = renderer
         currentSurface?.let(::attachSurface)
         clusterSurface?.let { renderer.setSurface(SCREEN_TYPE_ALT, it) }
+        // Zeekr windshield HUD: show the CarPlay card/map stream there, by analogy with the cluster.
+        zeekrHudHost?.stop()
+        zeekrHudHost = if (zeekrHudDisplayPresent()) ZeekrHudHost(this, renderer).also { runCatching { it.start() } } else null
         MapMirrors.reapply()
         val media = createMediaEngine(renderer)
         val pairings = AirPlayPersistence.loadPairings(this) { id, key ->

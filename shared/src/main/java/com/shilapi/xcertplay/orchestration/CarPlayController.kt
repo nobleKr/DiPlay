@@ -443,6 +443,9 @@ class CarPlayController(
             debugLog(
                 "AirPlay command type=$type params=${params.keys.sorted().joinToString(",")}",
             )
+            if (type == "modes") {
+                com.shilapi.xcertplay.airplay.CarPlayNavigationState.onModesChanged(params)
+            }
             if (
                 config.transport == CarPlayTransport.WIRELESS &&
                 !closed &&

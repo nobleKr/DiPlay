@@ -2,11 +2,11 @@
  * DiPlay — Zeekr adaptation. GPLv3 (see LICENSE).
  *
  * Host-side orchestrator for the Zeekr windshield HUD, mirroring the engine's
- * ZeekrHudBridge: it shows the CarPlay HUD card/map stream on the HUD display,
+ * ZeekrHudBridge: shows the CarPlay HUD card/map stream on the HUD display,
  * keeps CarPlayNavigationState in step with the phone's guidance (opening the
  * wanted screen while the phone is actively guiding), and drives the AR-HUD
- * route feed over fdbus. Create it only when a HUD display is present; call
- * start()/stop() with the session and onModes()/tick() from the host.
+ * route feed over fdbus. It owns its own pump, so the host only needs start()
+ * when a session's sink is ready and stop() when it ends.
  */
 package com.shilapi.xcertplay
 
@@ -20,23 +20,61 @@ import com.shilapi.xcertplay.hud.zeekr.ZeekrDisplayRouter
 import com.shilapi.xcertplay.hud.zeekr.arhud.ZeekrArHudOutput
 import com.shilapi.xcertplay.hud.zeekr.arhud.ZeekrArHudRoute
 import com.shilapi.xcertplay.media.AndroidMediaSink
+import java.util.concurrent.Executors
+import java.util.concurrent.ScheduledExecutorService
+import java.util.concurrent.TimeUnit
 
 class ZeekrHudHost(private val activity: Activity, private val sink: AndroidMediaSink) {
     private val arHud = ZeekrArHudOutput { tag, msg -> Log.i(TAG, "$tag: $msg") }
     private var presentation: ZeekrHudPresentation? = null
     @Volatile private var surface: Surface? = null
+    private var ticker: ScheduledExecutorService? = null
 
-    /** Show the HUD presentation and register its surface for the enabled HUD screens. */
+    /** Show the HUD presentation and start the pump; no-op without a HUD display. */
     fun start() {
-        if (presentation != null) return
         val display = ZeekrDisplayRouter.hudDisplay(activity) ?: run {
             Log.i(TAG, "no HUD display; HUD host idle")
             return
         }
-        val p = ZeekrHudPresentation(activity, display) { s -> activity.runOnUiThread { onSurface(s) } }
-        p.setOnDismissListener { if (presentation === p) { presentation = null; onSurface(null) } }
-        runCatching { p.show(); presentation = p }
-            .onFailure { Log.w(TAG, "HUD presentation failed: ${it.message}") }
+        activity.runOnUiThread {
+            if (presentation == null) {
+                val p = ZeekrHudPresentation(activity, display) { s -> activity.runOnUiThread { onSurface(s) } }
+                p.setOnDismissListener { if (presentation === p) { presentation = null; onSurface(null) } }
+                runCatching { p.show(); presentation = p }
+                    .onFailure { Log.w(TAG, "HUD presentation failed: ${it.message}") }
+            }
+        }
+        if (ticker == null) {
+            ticker = Executors.newSingleThreadScheduledExecutor { r ->
+                Thread(r, "zeekr-hud").apply { isDaemon = true }
+            }.also { it.scheduleWithFixedDelay({ runCatching { tick() } }, 500, 700, TimeUnit.MILLISECONDS) }
+        }
+    }
+
+    /** Supply the current CarPlay route geometry for the AR-HUD (null clears it). */
+    fun setArRoute(route: ZeekrArHudRoute?) = arHud.setRoute(route)
+
+    fun stop() {
+        ticker?.shutdownNow()
+        ticker = null
+        runCatching { arHud.clear() }
+        activity.runOnUiThread {
+            onSurface(null)
+            runCatching { presentation?.dismiss() }
+            presentation = null
+        }
+        CarPlayNavigationState.reset()
+    }
+
+    private fun tick() {
+        arHud.tick(CarPlayNavigationState.phoneOwnsGuidance)
+        apply()
+    }
+
+    private fun apply() {
+        val guiding = CarPlayNavigationState.phoneOwnsGuidance
+        CarPlayNavigationState.setWanted(HudScreen.MAP, guiding && ZeekrHudSettings.mapEnabled(activity))
+        CarPlayNavigationState.setWanted(HudScreen.CARD, guiding && ZeekrHudSettings.cardEnabled(activity))
     }
 
     private fun onSurface(s: Surface?) {
@@ -50,35 +88,6 @@ class ZeekrHudHost(private val activity: Activity, private val sink: AndroidMedi
     private fun screenTypes(): List<Int> = buildList {
         if (ZeekrHudSettings.mapEnabled(activity)) add(AirPlayInfoPlist.STREAM_TYPE_MAP_SCREEN)
         if (ZeekrHudSettings.cardEnabled(activity)) add(AirPlayInfoPlist.STREAM_TYPE_CARD_SCREEN)
-    }
-
-    /** Feed the phone's modes message so guidance state tracks the active route. */
-    fun onModes(params: Map<String, Any?>) {
-        CarPlayNavigationState.onModesChanged(params)
-        apply()
-    }
-
-    /** Supply the current CarPlay route geometry for the AR-HUD (null clears it). */
-    fun setArRoute(route: ZeekrArHudRoute?) = arHud.setRoute(route)
-
-    /** Periodic pump: drive the AR-HUD feed and keep the wanted HUD screen in step. */
-    fun tick() {
-        arHud.tick(CarPlayNavigationState.phoneOwnsGuidance)
-        apply()
-    }
-
-    private fun apply() {
-        val guiding = CarPlayNavigationState.phoneOwnsGuidance
-        CarPlayNavigationState.setWanted(HudScreen.MAP, guiding && ZeekrHudSettings.mapEnabled(activity))
-        CarPlayNavigationState.setWanted(HudScreen.CARD, guiding && ZeekrHudSettings.cardEnabled(activity))
-    }
-
-    fun stop() {
-        runCatching { arHud.clear() }
-        onSurface(null)
-        runCatching { presentation?.dismiss() }
-        presentation = null
-        CarPlayNavigationState.reset()
     }
 
     companion object { private const val TAG = "Zeekr-HUD" }
